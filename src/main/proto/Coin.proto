@@ -1,0 +1,8 @@
+syntax = "proto3";
+option java_package = "com.strutynskyi.ssl";
+
+message Coin {
+  string symbol = 1;
+  double price_usdt = 2;
+  int64 time = 3;
+}

@@ -110,11 +110,12 @@
 <body>
 <h1>Інтерфейс OpenID Connect</h1>
 
+
 <div style="text-align: center;">
     <button onclick="login()">Увійти</button>
     <button onclick="fetchUserInfo()">Отримати інформацію про користувача</button>
     <button onclick="logout()">Вийти</button>
-    <button id="binanceStreamButton" onclick="connectToBinanceStream()" disabled>Отримати Binance Stream</button>
+    <button id="binanceStreamButton" onclick="connectToBinanceStream()">Отримати Binance Stream</button>
 </div>
 
 <div id="status">
@@ -197,6 +198,7 @@
         window.location.href = 'https://localhost:8081/auth/login';
     }
 
+
     function logout() {
         document.cookie = 'access_token=; path=/; max-age=0';
         document.getElementById('status').innerHTML = '<p>Ви вийшли. Натисніть «Отримати інформацію про користувача», щоб перевірити ще раз.</p>';
@@ -219,15 +221,12 @@
             return;
         }
 
-        const accessToken = getCookie('access_token');
-        if (!accessToken) {
-            alert('Для підключення до Binance Stream необхідно увійти.');
-            return;
-        }
+
 
         const wsUrl = `wss://localhost:8081/ws/binance`;
 
         binanceWebSocket = new WebSocket(wsUrl);
+        binanceWebSocket.binaryType = 'arraybuffer';
 
         binanceWebSocket.onopen = (event) => {
             console.log('[WebSocket] Підключено до вашого WebSocket-сервера.', event);
@@ -240,23 +239,43 @@
         };
 
         binanceWebSocket.onmessage = (event) => {
+            let ticker = null;
             try {
                 const buffer = new Uint8Array(event.data);
-                const ticker = decodeCoin(buffer)
-                const symbol = ticker.symbol;
-                const price = ticker.price_usdt;
-                const time = ticker.time;
+                console.log("Received buffer:", buffer);
+                ticker = decodeCoin(buffer);
+                console.log("Successfully decoded ticker:", ticker);
 
-                const priceEl = document.querySelector(`#${symbol}-data .currency-price`);
-                const timeEl = document.querySelector(`#${symbol}-data .currency-time`);
+                if (ticker && ticker.symbol && typeof ticker.price_usdt === 'number') {
+                    const symbol = ticker.symbol.toLowerCase();
+                    const price = ticker.price_usdt;
+                    let tradeTime = null;
+                    if (ticker.time && typeof ticker.time === 'object' && ticker.time.hasOwnProperty('low') && ticker.time.hasOwnProperty('high')) {
+                        const low = ticker.time.low;
+                        const high = ticker.time.high;
+                        const timestamp = (high * Math.pow(2, 32)) + (ticker.time.unsigned ? low : (low >>> 0));
+                        if (!isNaN(timestamp)) {
+                            tradeTime = new Date(timestamp);
+                        } else {
+                            console.error("Failed to convert tradeTime to a valid number:", ticker.time);
+                            tradeTime = null;
+                        }
+                    } else if (ticker.time) {
+                        tradeTime = new Date(Number(ticker.time));
+                    }
 
-                if (priceEl) priceEl.textContent = price.toFixed(2);
-                if (timeEl) timeEl.textContent = time;
+                    const priceEl = document.querySelector(`#${symbol}-data .currency-price`);
+                    const timeEl = document.querySelector(`#${symbol}-data .currency-time`);
+
+                    if (priceEl) priceEl.textContent = price.toFixed(2);
+                    if (timeEl) timeEl.textContent = tradeTime ? tradeTime.toLocaleTimeString() : "Невідомо";
+                } else {
+                    console.warn("Decoded ticker object is incomplete or invalid:", ticker);
+                }
             } catch (err) {
-                console.error('Помилка десеріалізації Protobuf:', err);
+                console.error('Помилка десеріалізації Protobuf або обробки:', err);
             }
         };
-
         binanceWebSocket.onerror = (event) => {
             console.error('[WebSocket] Помилка:', event);
             const statusDiv = document.getElementById('status');
@@ -286,6 +305,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', fetchUserInfo);
+
 
     window.login = login;
     window.logout = logout;

@@ -33,8 +33,9 @@ public class BinanceStreamService {
                 public void onMessage(String message) {
                     try {
                         JsonObject json = JsonParser.parseString(message).getAsJsonObject();
+                        String stream = json.get("stream").getAsString();
 
-                        JsonObject data = json.getAsJsonObject("data"); // Спершу зайти в "data"
+                        JsonObject data = json.getAsJsonObject("data");
                         if (data == null || !data.has("s") || !data.has("p") || !data.has("T")) {
                             System.err.println("[WebSocket] Missing required fields in message: " + message);
                             return;
@@ -45,6 +46,7 @@ public class BinanceStreamService {
                         long timestamp = data.get("T").getAsLong();
 
                         CoinOuterClass.Coin coin = CoinOuterClass.Coin.newBuilder()
+                                .setStream(stream)
                                 .setSymbol(symbol)
                                 .setPriceUsdt(price)
                                 .setTime(timestamp)

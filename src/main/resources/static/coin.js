@@ -1,60 +1,73 @@
-exports.encodeCoin = function (message) {
-  var bb = popByteBuffer();
+export function encodeCoin(message) {
+  let bb = popByteBuffer();
   _encodeCoin(message, bb);
   return toUint8Array(bb);
 }
 
 function _encodeCoin(message, bb) {
-  // optional string symbol = 1;
-  var $symbol = message.symbol;
-  if ($symbol !== undefined) {
+  // optional string stream = 1;
+  let $stream = message.stream;
+  if ($stream !== undefined) {
     writeVarint32(bb, 10);
+    writeString(bb, $stream);
+  }
+
+  // optional string symbol = 2;
+  let $symbol = message.symbol;
+  if ($symbol !== undefined) {
+    writeVarint32(bb, 18);
     writeString(bb, $symbol);
   }
 
-  // optional double price_usdt = 2;
-  var $price_usdt = message.price_usdt;
+  // optional double price_usdt = 3;
+  let $price_usdt = message.price_usdt;
   if ($price_usdt !== undefined) {
-    writeVarint32(bb, 17);
+    writeVarint32(bb, 25);
     writeDouble(bb, $price_usdt);
   }
 
-  // optional int64 time = 3;
-  var $time = message.time;
+  // optional int64 time = 4;
+  let $time = message.time;
   if ($time !== undefined) {
-    writeVarint32(bb, 24);
+    writeVarint32(bb, 32);
     writeVarint64(bb, $time);
   }
-};
+}
 
-exports.decodeCoin = function (binary) {
+export function decodeCoin(binary) {
   return _decodeCoin(wrapByteBuffer(binary));
 }
 
 function _decodeCoin(bb) {
-  var message = {};
+  let message = {};
 
   end_of_message: while (!isAtEnd(bb)) {
-    var tag = readVarint32(bb);
+    let tag = readVarint32(bb);
 
     switch (tag >>> 3) {
       case 0:
         break end_of_message;
 
-      // optional string symbol = 1;
+      // optional string stream = 1;
       case 1: {
+        message.stream = readString(bb, readVarint32(bb));
+        break;
+      }
+
+      // optional string symbol = 2;
+      case 2: {
         message.symbol = readString(bb, readVarint32(bb));
         break;
       }
 
-      // optional double price_usdt = 2;
-      case 2: {
+      // optional double price_usdt = 3;
+      case 3: {
         message.price_usdt = readDouble(bb);
         break;
       }
 
-      // optional int64 time = 3;
-      case 3: {
+      // optional int64 time = 4;
+      case 4: {
         message.time = readVarint64(bb, /* unsigned */ false);
         break;
       }
@@ -65,11 +78,11 @@ function _decodeCoin(bb) {
   }
 
   return message;
-};
+}
 
 function pushTemporaryLength(bb) {
-  var length = readVarint32(bb);
-  var limit = bb.limit;
+  let length = readVarint32(bb);
+  let limit = bb.limit;
   bb.limit = bb.offset + length;
   return limit;
 }
@@ -93,8 +106,8 @@ function stringToLong(value) {
 }
 
 function longToString(value) {
-  var low = value.low;
-  var high = value.high;
+  let low = value.low;
+  let high = value.high;
   return String.fromCharCode(
     low & 0xFFFF,
     low >>> 16,
@@ -105,11 +118,11 @@ function longToString(value) {
 // The code below was modified from https://github.com/protobufjs/bytebuffer.js
 // which is under the Apache License 2.0.
 
-var f32 = new Float32Array(1);
-var f32_u8 = new Uint8Array(f32.buffer);
+let f32 = new Float32Array(1);
+let f32_u8 = new Uint8Array(f32.buffer);
 
-var f64 = new Float64Array(1);
-var f64_u8 = new Uint8Array(f64.buffer);
+let f64 = new Float64Array(1);
+let f64_u8 = new Uint8Array(f64.buffer);
 
 function intToLong(value) {
   value |= 0;
@@ -120,7 +133,7 @@ function intToLong(value) {
   };
 }
 
-var bbStack = [];
+let bbStack = [];
 
 function popByteBuffer() {
   const bb = bbStack.pop();
@@ -138,8 +151,8 @@ function wrapByteBuffer(bytes) {
 }
 
 function toUint8Array(bb) {
-  var bytes = bb.bytes;
-  var limit = bb.limit;
+  let bytes = bb.bytes;
+  let limit = bb.limit;
   return bytes.length === limit ? bytes : bytes.subarray(0, limit);
 }
 
@@ -155,12 +168,12 @@ function isAtEnd(bb) {
 }
 
 function grow(bb, count) {
-  var bytes = bb.bytes;
-  var offset = bb.offset;
-  var limit = bb.limit;
-  var finalOffset = offset + count;
+  let bytes = bb.bytes;
+  let offset = bb.offset;
+  let limit = bb.limit;
+  let finalOffset = offset + count;
   if (finalOffset > bytes.length) {
-    var newBytes = new Uint8Array(finalOffset * 2);
+    let newBytes = new Uint8Array(finalOffset * 2);
     newBytes.set(bytes);
     bb.bytes = newBytes;
   }
@@ -172,7 +185,7 @@ function grow(bb, count) {
 }
 
 function advance(bb, count) {
-  var offset = bb.offset;
+  let offset = bb.offset;
   if (offset + count > bb.limit) {
     throw new Error('Read past limit');
   }
@@ -181,25 +194,25 @@ function advance(bb, count) {
 }
 
 function readBytes(bb, count) {
-  var offset = advance(bb, count);
+  let offset = advance(bb, count);
   return bb.bytes.subarray(offset, offset + count);
 }
 
 function writeBytes(bb, buffer) {
-  var offset = grow(bb, buffer.length);
+  let offset = grow(bb, buffer.length);
   bb.bytes.set(buffer, offset);
 }
 
 function readString(bb, count) {
   // Sadly a hand-coded UTF8 decoder is much faster than subarray+TextDecoder in V8
-  var offset = advance(bb, count);
-  var fromCharCode = String.fromCharCode;
-  var bytes = bb.bytes;
-  var invalid = '\uFFFD';
-  var text = '';
+  let offset = advance(bb, count);
+  let fromCharCode = String.fromCharCode;
+  let bytes = bb.bytes;
+  let invalid = '\uFFFD';
+  let text = '';
 
-  for (var i = 0; i < count; i++) {
-    var c1 = bytes[i + offset], c2, c3, c4, c;
+  for (let i = 0; i < count; i++) {
+    let c1 = bytes[i + offset], c2, c3, c4, c;
 
     // 1 byte
     if ((c1 & 0x80) === 0) {
@@ -269,12 +282,12 @@ function readString(bb, count) {
 
 function writeString(bb, text) {
   // Sadly a hand-coded UTF8 encoder is much faster than TextEncoder+set in V8
-  var n = text.length;
-  var byteCount = 0;
+  let n = text.length;
+  let byteCount = 0;
 
   // Write the byte count first
-  for (var i = 0; i < n; i++) {
-    var c = text.charCodeAt(i);
+  for (let i = 0; i < n; i++) {
+    let c = text.charCodeAt(i);
     if (c >= 0xD800 && c <= 0xDBFF && i + 1 < n) {
       c = (c << 10) + text.charCodeAt(++i) - 0x35FDC00;
     }
@@ -282,12 +295,12 @@ function writeString(bb, text) {
   }
   writeVarint32(bb, byteCount);
 
-  var offset = grow(bb, byteCount);
-  var bytes = bb.bytes;
+  let offset = grow(bb, byteCount);
+  let bytes = bb.bytes;
 
   // Then write the bytes
-  for (var i = 0; i < n; i++) {
-    var c = text.charCodeAt(i);
+  for (let i = 0; i < n; i++) {
+    let c = text.charCodeAt(i);
     if (c >= 0xD800 && c <= 0xDBFF && i + 1 < n) {
       c = (c << 10) + text.charCodeAt(++i) - 0x35FDC00;
     }
@@ -311,12 +324,12 @@ function writeString(bb, text) {
 }
 
 function writeByteBuffer(bb, buffer) {
-  var offset = grow(bb, buffer.limit);
-  var from = bb.bytes;
-  var to = buffer.bytes;
+  let offset = grow(bb, buffer.limit);
+  let from = bb.bytes;
+  let to = buffer.bytes;
 
   // This for loop is much faster than subarray+set on V8
-  for (var i = 0, n = buffer.limit; i < n; i++) {
+  for (let i = 0, n = buffer.limit; i < n; i++) {
     from[i + offset] = to[i];
   }
 }
@@ -326,13 +339,13 @@ function readByte(bb) {
 }
 
 function writeByte(bb, value) {
-  var offset = grow(bb, 1);
+  let offset = grow(bb, 1);
   bb.bytes[offset] = value;
 }
 
 function readFloat(bb) {
-  var offset = advance(bb, 4);
-  var bytes = bb.bytes;
+  let offset = advance(bb, 4);
+  let bytes = bb.bytes;
 
   // Manual copying is much faster than subarray+set in V8
   f32_u8[0] = bytes[offset++];
@@ -343,8 +356,8 @@ function readFloat(bb) {
 }
 
 function writeFloat(bb, value) {
-  var offset = grow(bb, 4);
-  var bytes = bb.bytes;
+  let offset = grow(bb, 4);
+  let bytes = bb.bytes;
   f32[0] = value;
 
   // Manual copying is much faster than subarray+set in V8
@@ -355,8 +368,8 @@ function writeFloat(bb, value) {
 }
 
 function readDouble(bb) {
-  var offset = advance(bb, 8);
-  var bytes = bb.bytes;
+  let offset = advance(bb, 8);
+  let bytes = bb.bytes;
 
   // Manual copying is much faster than subarray+set in V8
   f64_u8[0] = bytes[offset++];
@@ -371,8 +384,8 @@ function readDouble(bb) {
 }
 
 function writeDouble(bb, value) {
-  var offset = grow(bb, 8);
-  var bytes = bb.bytes;
+  let offset = grow(bb, 8);
+  let bytes = bb.bytes;
   f64[0] = value;
 
   // Manual copying is much faster than subarray+set in V8
@@ -387,8 +400,8 @@ function writeDouble(bb, value) {
 }
 
 function readInt32(bb) {
-  var offset = advance(bb, 4);
-  var bytes = bb.bytes;
+  let offset = advance(bb, 4);
+  let bytes = bb.bytes;
   return (
     bytes[offset] |
     (bytes[offset + 1] << 8) |
@@ -398,8 +411,8 @@ function readInt32(bb) {
 }
 
 function writeInt32(bb, value) {
-  var offset = grow(bb, 4);
-  var bytes = bb.bytes;
+  let offset = grow(bb, 4);
+  let bytes = bb.bytes;
   bytes[offset] = value;
   bytes[offset + 1] = value >> 8;
   bytes[offset + 2] = value >> 16;
@@ -420,9 +433,9 @@ function writeInt64(bb, value) {
 }
 
 function readVarint32(bb) {
-  var c = 0;
-  var value = 0;
-  var b;
+  let c = 0;
+  let value = 0;
+  let b;
   do {
     b = readByte(bb);
     if (c < 32) value |= (b & 0x7F) << c;
@@ -441,10 +454,10 @@ function writeVarint32(bb, value) {
 }
 
 function readVarint64(bb, unsigned) {
-  var part0 = 0;
-  var part1 = 0;
-  var part2 = 0;
-  var b;
+  let part0 = 0;
+  let part1 = 0;
+  let part2 = 0;
+  let b;
 
   b = readByte(bb); part0 = (b & 0x7F); if (b & 0x80) {
     b = readByte(bb); part0 |= (b & 0x7F) << 7; if (b & 0x80) {
@@ -476,12 +489,12 @@ function readVarint64(bb, unsigned) {
 }
 
 function writeVarint64(bb, value) {
-  var part0 = value.low >>> 0;
-  var part1 = ((value.low >>> 28) | (value.high << 4)) >>> 0;
-  var part2 = value.high >>> 24;
+  let part0 = value.low >>> 0;
+  let part1 = ((value.low >>> 28) | (value.high << 4)) >>> 0;
+  let part2 = value.high >>> 24;
 
   // ref: src/google/protobuf/io/coded_stream.cc
-  var size =
+  let size =
     part2 === 0 ?
       part1 === 0 ?
         part0 < 1 << 14 ?
@@ -492,8 +505,8 @@ function writeVarint64(bb, value) {
           part1 < 1 << 21 ? 7 : 8 :
       part2 < 1 << 7 ? 9 : 10;
 
-  var offset = grow(bb, size);
-  var bytes = bb.bytes;
+  let offset = grow(bb, size);
+  let bytes = bb.bytes;
 
   switch (size) {
     case 10: bytes[offset + 9] = (part2 >>> 7) & 0x01;
@@ -510,7 +523,7 @@ function writeVarint64(bb, value) {
 }
 
 function readVarint32ZigZag(bb) {
-  var value = readVarint32(bb);
+  let value = readVarint32(bb);
 
   // ref: src/google/protobuf/wire_format_lite.h
   return (value >>> 1) ^ -(value & 1);
@@ -522,10 +535,10 @@ function writeVarint32ZigZag(bb, value) {
 }
 
 function readVarint64ZigZag(bb) {
-  var value = readVarint64(bb, /* unsigned */ false);
-  var low = value.low;
-  var high = value.high;
-  var flip = -(low & 1);
+  let value = readVarint64(bb, /* unsigned */ false);
+  let low = value.low;
+  let high = value.high;
+  let flip = -(low & 1);
 
   // ref: src/google/protobuf/wire_format_lite.h
   return {
@@ -536,9 +549,9 @@ function readVarint64ZigZag(bb) {
 }
 
 function writeVarint64ZigZag(bb, value) {
-  var low = value.low;
-  var high = value.high;
-  var flip = high >> 31;
+  let low = value.low;
+  let high = value.high;
+  let flip = high >> 31;
 
   // ref: src/google/protobuf/wire_format_lite.h
   writeVarint64(bb, {

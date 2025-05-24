@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "proto:generate_coin": "pbjs --es5 ../resources/static/coin.js ../proto/Coin.proto"
+    "proto:generate_coin": "pbjs --es6 ../resources/static/coin.js ../proto/Coin.proto"
   },
   "keywords": [],
   "author": "",
